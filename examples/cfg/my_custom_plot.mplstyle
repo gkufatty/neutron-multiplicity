@@ -1,0 +1,55 @@
+# To check more avaialble options see:
+# https://matplotlib.org/tutorials/introductory/customizing.html
+
+
+# font.family: sans-serif
+# font.sans-serif:  Arial
+
+text.color : (0.2,0.2,0.2)
+
+# AXES
+axes.titlesize : 14
+axes.labelsize : 14
+axes.edgecolor : (0.1,0.1,0.1) #Normalized RGB colours (from 0 to 1 instead of 0 to 255)
+axes.labelcolor : (0.1,0.1,0.1)
+axes.linewidth : 1.5
+axes.spines.top : True
+axes.spines.right : True
+axes.spines.bottom : True
+axes.spines.left : True
+
+# GRID
+axes.grid : True
+grid.alpha : 0.7
+grid.linestyle : --
+grid.linewidth : 0.6
+
+# LINES
+lines.linewidth : 1.5
+lines.markeredgewidth : 0.0
+
+# SCATTER PLOT
+scatter.marker : .
+
+# TICKS
+xtick.minor.size: 3
+xtick.major.size: 6
+xtick.minor.width: 1
+xtick.major.width: 1.5
+xtick.labelsize : 13
+xtick.color : (0.2,0.2,0.2)
+xtick.direction : in
+xtick.top: True
+ytick.minor.size: 3
+ytick.major.size: 6
+ytick.minor.width: 1.
+ytick.major.width: 1.5
+ytick.labelsize : 13
+ytick.color : (0.2,0.2,0.2)
+ytick.direction : in
+ytick.right: True
+
+# FIGURE OUTPUT 
+figure.figsize  : 7, 5
+figure.dpi : 200
+savefig.dpi : 200
