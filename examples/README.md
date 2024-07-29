@@ -9,7 +9,7 @@ from CAF files (hopefully soon!)
 Be sure you create your python3 environment with the following
 dependencies
 
-numpy
-pandas
-matplotlib
-uproot 
+* numpy
+* pandas
+* matplotlib
+* uproot 
