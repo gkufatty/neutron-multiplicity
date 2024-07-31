@@ -1,11 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import AutoMinorLocator, MultipleLocator
-
 import uproot
 import pandas as pd
 import numpy as np
 import sys
+
+
+
+'''
+Utility functions to run
+the example notebooks
+'''
 
 
 def load_keys(keys_set):
@@ -19,10 +25,14 @@ def load_keys(keys_set):
     return data
 
 
-def load_dataset(n_files):
+def load_dataset(n_files,location):
     print("Openning MiniRun 5 beta 2.a CAFs")
     print("Reading ", n_files, " files")
-    input_list = "./cfg/minirun_5_beta2a.txt"
+
+    if(location=="nersc"):
+        input_list = "./cfg/minirun_5_beta2a.txt"
+    else:
+        input_list = "./cfg/minirun_5_beta2a_fnal.txt"
     file_list = open(input_list, 'r')
     data = []
     df = pd.DataFrame(data)

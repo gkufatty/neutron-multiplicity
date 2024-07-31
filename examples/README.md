@@ -12,4 +12,6 @@ dependencies
 * numpy
 * pandas
 * matplotlib
-* uproot 
+* uproot
+* jupyter 
+* xxhash 
