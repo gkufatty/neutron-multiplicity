@@ -8,8 +8,8 @@
 text.color : (0.2,0.2,0.2)
 
 # AXES
-axes.titlesize : 14
-axes.labelsize : 14
+axes.titlesize : 12
+axes.labelsize : 12
 axes.edgecolor : (0.1,0.1,0.1) #Normalized RGB colours (from 0 to 1 instead of 0 to 255)
 axes.labelcolor : (0.1,0.1,0.1)
 axes.linewidth : 1.5
@@ -34,22 +34,22 @@ scatter.marker : .
 # TICKS
 xtick.minor.size: 3
 xtick.major.size: 6
-xtick.minor.width: 1
-xtick.major.width: 1.5
-xtick.labelsize : 13
+xtick.minor.width: 0.5
+xtick.major.width: 1
+xtick.labelsize : 11
 xtick.color : (0.2,0.2,0.2)
 xtick.direction : in
 xtick.top: True
 ytick.minor.size: 3
 ytick.major.size: 6
-ytick.minor.width: 1.
-ytick.major.width: 1.5
-ytick.labelsize : 13
+ytick.minor.width: 0.5
+ytick.major.width: 1.
+ytick.labelsize : 11
 ytick.color : (0.2,0.2,0.2)
 ytick.direction : in
 ytick.right: True
 
 # FIGURE OUTPUT 
-figure.figsize  : 7, 5
+figure.figsize  : 5, 3
 figure.dpi : 200
 savefig.dpi : 200

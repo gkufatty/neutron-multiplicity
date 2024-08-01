@@ -66,7 +66,8 @@ class ParticleCode():
     def __init__(self):
 
         # Massess
-        self.neutron_mass = 939.56 # MeV/c2 
+        self.neutron_mass = 939.5654 # MeV/c2 
+        self.proton_mass = 938.2702 # MeV/c2
 
 
         # PDG Codes 
