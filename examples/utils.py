@@ -72,6 +72,8 @@ class ParticleCode():
 
         # PDG Codes 
         self.argon = 1000180400
+        self.chlorine = 1000170360
+        self.sulfur = 1000160320 
         self.muon = 13
         self.neutron = 2112
         self.pi0 = 111
@@ -80,3 +82,4 @@ class ParticleCode():
         self.proton = 2212
         self.numu = 14
         self.nue = 12
+        self.photon = 22
