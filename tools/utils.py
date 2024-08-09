@@ -1,0 +1,86 @@
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.ticker import AutoMinorLocator, MultipleLocator
+import uproot
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+import sys
+
+
+
+'''
+Utility functions to run
+the example notebooks
+'''
+
+def load_keys(keys_set):
+    if(keys_set=="n-Ar"):
+        input_keys = "./cfg/caf_keys.txt"
+    keys_list = open(input_keys,'r')
+    data = []
+    for line in keys_list:
+        line = line.strip()
+        data.append(line)
+    return data
+
+
+def load_dataset(n_files,location):
+    print("Openning MiniRun 5 beta 2.a CAFs")
+    print("Reading ", n_files, " files")
+
+    if(location=="nersc"):
+        input_list = "./cfg/minirun5_noe_fix.txt"
+    else:
+        input_list = "./cfg/minirun_5_beta2a_fnal.txt"
+    file_list = open(input_list, 'r')
+    data = []
+    df = pd.DataFrame(data)
+    counter = 0
+    counter_max = n_files 
+    for line in tqdm(file_list):
+        if(counter > counter_max):
+            break
+        else:
+            line = line.strip()
+            #print("Reading", line)
+            caf_file = uproot.open(line)
+            caf_tree = caf_file['cafTree']
+            # Create an empty dictionary to store branch data
+            caf_data_dict = {}
+            # Import list of keys for n-Ar
+            caf_keys = load_keys("n-Ar")
+            #Iterate over the branch names in the TTree
+            for branch_name in caf_keys:
+                # Use branch_name as the key and fetch the data using .array()
+                caf_data_dict[branch_name] = caf_tree[branch_name].array(library="np")
+            # Create a Pandas DataFrame from the dictionary
+            df_temp = pd.DataFrame(caf_data_dict)
+            df = pd.concat([df, df_temp])
+            counter+=1
+    return df 
+
+
+class ParticleCode():
+    # Class containing pdg codes
+    def __init__(self):
+
+        # Massess
+        self.neutron_mass = 939.5654 # MeV/c2 
+        self.proton_mass = 938.2702 # MeV/c2
+
+
+        # PDG Codes 
+        self.argon = 1000180400
+        self.chlorine = 1000170360
+        self.sulfur = 1000160320 
+        self.muon = 13
+        self.neutron = 2112
+        self.electron = 11 
+        self.pi0 = 111
+        self.pip = 211
+        self.eta = 221
+        self.proton = 2212
+        self.numu = 14
+        self.nue = 12
+        self.photon = 22
