@@ -323,7 +323,9 @@ class CafReader():
                 out_dict[branch] = my_event[branch]
             else:
                 out_dict[branch] = my_event[branch][nreco_part_pre:nreco_part_pre+nreco_part]
-
+    
+    def get_minerva_data(self, my_event):
+        out_dict= {}
         # Get MINERvA info
         for branch in self.minerva_branches:
             out_dict[branch] = my_event[branch]
