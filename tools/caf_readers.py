@@ -33,6 +33,63 @@ class CafReader():
 
 
     def __init__(self,df):
+        self.nu_branches=[
+                "rec.mc.nu.E",
+                "rec.mc.nu.Q2",
+                "rec.mc.nu.W",
+                "rec.mc.nu.baseline",
+                "rec.mc.nu.bjorkenX",
+                "rec.mc.nu.generator",
+                "rec.mc.nu.genieIdx",
+                "rec.mc.nu.genweight",
+                "rec.mc.nu.hitnuc",
+                "rec.mc.nu.id",
+                "rec.mc.nu.imp_weight",
+                "rec.mc.nu.inelasticity",
+                "rec.mc.nu.iscc",
+                "rec.mc.nu.ischarm",
+                "rec.mc.nu.isseaquark",
+                "rec.mc.nu.isvtxcont",
+                "rec.mc.nu.mode",
+                "rec.mc.nu.modq",
+                "rec.mc.nu.momentum.x",
+                "rec.mc.nu.momentum.y",
+                "rec.mc.nu.momentum.z",
+                "rec.mc.nu.nneutron",
+                "rec.mc.nu.npi0",
+                "rec.mc.nu.npim",
+                "rec.mc.nu.npip",
+                "rec.mc.nu.nprefsi",
+                "rec.mc.nu.nprim",
+                "rec.mc.nu.nproton",
+                "rec.mc.nu.nsec",
+                "rec.mc.nu.parent_dcy_E",
+                "rec.mc.nu.parent_dcy_mode",
+                "rec.mc.nu.parent_dcy_mom.x",
+                "rec.mc.nu.parent_dcy_mom.y",
+                "rec.mc.nu.parent_dcy_mom.z",
+                "rec.mc.nu.parent_pdg",
+                "rec.mc.nu.pdg",
+                "rec.mc.nu.pdgorig",
+                "rec.mc.nu.prod_vtx.x",
+                "rec.mc.nu.prod_vtx.y",
+                "rec.mc.nu.prod_vtx.z",
+                "rec.mc.nu.q0",
+                "rec.mc.nu.removalE",
+                "rec.mc.nu.resnum",
+                "rec.mc.nu.t", 
+                "rec.mc.nu.targetPDG", 
+                "rec.mc.nu.time", 
+                "rec.mc.nu.vtx.x", 
+                "rec.mc.nu.vtx.y", 
+                "rec.mc.nu.vtx.z", 
+                "rec.mc.nu.xsec", 
+                "rec.mc.nu.xsec_cvwgt" 
+            ]
+
+
+
+
         self.reco_branches= [
                 "rec.common.ixn.dlp.id",
                 "rec.common.ixn.dlp.part.dlp..length",
@@ -64,11 +121,14 @@ class CafReader():
                 "rec.common.ixn.dlp.part.dlp.truthOverlap",
                 "rec.common.ixn.dlp.part.dlp.truthOverlap..idx",
                 "rec.common.ixn.dlp.part.dlp..idx",
+            ]
+        
+        self.reco_nu_branches=[
                 "rec.common.ixn.dlp.part.ndlp",
                 "rec.common.ixn.dlp.vtx.x",
                 "rec.common.ixn.dlp.vtx.y",
                 "rec.common.ixn.dlp.vtx.z"
-            ]
+        ]
         
         self.primary_branches = [
                 "rec.mc.nu.prim.G4ID",
@@ -112,6 +172,40 @@ class CafReader():
                 "rec.mc.nu.sec.start_process",
                 "rec.mc.nu.sec.time",
                 "rec.mc.nu.sec..idx"
+            ]
+
+        self.minerva_branches = [
+                "rec.nd.minerva.ixn.tracks..length",
+                "rec.nd.minerva.ixn.tracks..totarraysize",
+                "rec.nd.minerva.ixn.tracks.E",
+                "rec.nd.minerva.ixn.tracks.Evis",
+                "rec.nd.minerva.ixn.tracks.dir.x",
+                "rec.nd.minerva.ixn.tracks.dir.y",
+                "rec.nd.minerva.ixn.tracks.dir.z",
+                "rec.nd.minerva.ixn.tracks.end.x",
+                "rec.nd.minerva.ixn.tracks.end.y",
+                "rec.nd.minerva.ixn.tracks.end.z",
+                "rec.nd.minerva.ixn.tracks.enddir.x",
+                "rec.nd.minerva.ixn.tracks.enddir.y",
+                "rec.nd.minerva.ixn.tracks.enddir.z",
+                "rec.nd.minerva.ixn.tracks.len_cm",
+                "rec.nd.minerva.ixn.tracks.len_gcm2",
+                "rec.nd.minerva.ixn.tracks.qual",
+                "rec.nd.minerva.ixn.tracks.start.x",
+                "rec.nd.minerva.ixn.tracks.start.y",
+                "rec.nd.minerva.ixn.tracks.start.z",
+                "rec.nd.minerva.ixn.tracks.truth..length",
+                "rec.nd.minerva.ixn.tracks.truth..totarraysize",
+                "rec.nd.minerva.ixn.tracks.truth.ixn",
+                "rec.nd.minerva.ixn.tracks.truth.part",
+                "rec.nd.minerva.ixn.tracks.truth.type",
+                "rec.nd.minerva.ixn.tracks.truth..idx",
+                "rec.nd.minerva.ixn.tracks.truthOverlap..length",
+                "rec.nd.minerva.ixn.tracks.truthOverlap..totarraysize",
+                #"rec.nd.minerva.ixn.tracks.truthOverlap",
+                "rec.nd.minerva.ixn.tracks.truthOverlap..idx",
+                "rec.nd.minerva.ixn.tracks..idx",
+                "rec.nd.minerva.nixn"
             ]
 
 
@@ -175,6 +269,7 @@ class CafReader():
         nsec_pre = np.sum(my_event['rec.mc.nu.sec..length'][:ixn_id])
         out_dict = {}
 
+        
         if(verbose):
             print(f"Extracting true data for ixn {ixn_id}")
             print(f"Number of primary particles {nprim}")
@@ -182,6 +277,12 @@ class CafReader():
             print(f"Number of secondary particles {nsec}")
             print(f"Number of pre-sec {nsec_pre}")
 
+        # Get nu info 
+        for branch in self.nu_branches:
+            if(np.isscalar(my_event[branch])):
+                out_dict[branch] = my_event[branch]
+            else:
+                out_dict[branch] = my_event[branch][ixn_id]
 
         # Get primaries
         for branch in self.primary_branches:
@@ -192,5 +293,72 @@ class CafReader():
             out_dict[branch] = my_event[branch][nsec_pre:nsec_pre+nsec]
 
         return out_dict 
+
+    def get_reco_ixn_data(self,my_event,ixn_id,verbose=False):
+        out_dict={}
+        nreco_part = my_event["rec.common.ixn.dlp.part.dlp..length"][ixn_id]
+        nreco_part_pre = np.sum(my_event["rec.common.ixn.dlp.part.dlp..length"][:ixn_id])
+        part_pdg = my_event["rec.common.ixn.dlp.part.dlp.pdg"][nreco_part_pre:nreco_part_pre+nreco_part]
+        part_start_x = my_event["rec.common.ixn.dlp.part.dlp.start.x"][nreco_part_pre:nreco_part_pre+nreco_part]
+        part_start_z = my_event["rec.common.ixn.dlp.part.dlp.start.z"][nreco_part_pre:nreco_part_pre+nreco_part]
+        part_end_x = my_event["rec.common.ixn.dlp.part.dlp.end.x"][nreco_part_pre:nreco_part_pre+nreco_part]
+        part_end_z = my_event["rec.common.ixn.dlp.part.dlp.end.z"][nreco_part_pre:nreco_part_pre+nreco_part]
+
+        if(verbose):
+            print(f"Number of reconstructed particles {nreco_part}")
+            print(f"PDG codes of reco parts {part_pdg}")
+            print(f"start points {part_start_z}, {part_start_x}")
+            print(f"end points {part_end_z}, {part_end_x}")
+
+
+        for branch in self.reco_nu_branches:
+            if(np.isscalar(my_event[branch])):
+                out_dict[branch] = my_event[branch]
+            else:
+                out_dict[branch] = my_event[branch][ixn_id]
+
+        # Get reco part info 
+        for branch in self.reco_branches:
+            if(np.isscalar(my_event[branch])):
+                out_dict[branch] = my_event[branch]
+            else:
+                out_dict[branch] = my_event[branch][nreco_part_pre:nreco_part_pre+nreco_part]
+
+        # Get MINERvA info
+        for branch in self.minerva_branches:
+            out_dict[branch] = my_event[branch]
+        return out_dict 
+    
+    
+    
+    def dump_branches(self,my_event,data_level):
+
+        if(data_level=="truth" or data_level=="all"):
+            print("Printing truth info...")
+            # Get nu info 
+            for branch in self.nu_branches:
+                print(branch, my_event[branch])
+
+            # Get primaries
+            for branch in self.primary_branches:
+                print(branch, my_event[branch])
+            # Get secondaries 
+            for branch in self.secondary_branches:
+                print(branch, my_event[branch])
+            print("==============================")
+
+        
+        if(data_level=="reco" or data_level=="all"):
+            print("Printing reco info...")
+
+            # Get spine/ML-reco 
+            for branch in self.reco_branches:
+                print(branch, my_event[branch])
+
+            # Get MINERvA
+            for branch in self.minerva_branches:
+                print(branch, my_event[branch])
+            print("==============================")
+
     
         
