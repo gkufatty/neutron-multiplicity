@@ -7,7 +7,7 @@ def Mx2_DS_Match(reco_track, minerva_data):
     # Variables to return 
     ds_dp = 0 
     bm_index = None
-    exit_minvera = False
+    exit_minerva = False
     deltaX = None
     deltaY = None
 
