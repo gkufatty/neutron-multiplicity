@@ -127,7 +127,14 @@ class CafReader():
                 "rec.common.ixn.dlp.part.ndlp",
                 "rec.common.ixn.dlp.vtx.x",
                 "rec.common.ixn.dlp.vtx.y",
-                "rec.common.ixn.dlp.vtx.z"
+                "rec.common.ixn.dlp.vtx.z",
+                "rec.common.ixn.dlp.truth..length",
+                "rec.common.ixn.dlp.truth",
+                "rec.common.ixn.dlp.truth..idx",
+                "rec.common.ixn.dlp.truthOverlap..length",
+                "rec.common.ixn.dlp.truthOverlap..totarraysize",
+                "rec.common.ixn.dlp.truthOverlap",
+                "rec.common.ixn.dlp.truthOverlap..idx"
         ]
         
         self.primary_branches = [
@@ -210,14 +217,14 @@ class CafReader():
 
 
     # Methods     
-    def reco_backtrack(self,ixn_index,verbose=False):
-        # As it is it backtracks primary reco protons! 
-        n_ixn = len(self.df['rec.common.ixn.dlp.id'])
-        n_particles = self.df['rec.common.ixn.dlp.part.dlp..length'][ixn_index]
+    def reco_backtrack(self,df,ixn_index,verbose=False):
+        # As it is it backtracks primary reco protons!
+        n_ixn = len(df['rec.common.ixn.dlp.id'])
+        n_particles = df['rec.common.ixn.dlp.part.dlp..length'][ixn_index]
         if(ixn_index==0):
             n_pre = 0
         else: 
-            n_pre = np.sum(self.df['rec.common.ixn.dlp.part.dlp..length'][:ixn_index]) 
+            n_pre = np.sum(df['rec.common.ixn.dlp.part.dlp..length'][:ixn_index]) 
 
         if(verbose):
             print('Number of interactions in this event ',n_ixn)
@@ -228,37 +235,45 @@ class CafReader():
         for ip in range(n_pre,n_pre + n_particles):
             #print(ip)
             # Check if particle is primary 
-            is_primary = self.df['rec.common.ixn.dlp.part.dlp.primary'][ip]
+            is_primary = df['rec.common.ixn.dlp.part.dlp.primary'][ip]
             if(is_primary==False):
                 continue 
             else:
                 # Get reco PDG
-                reco_pdg = self.df['rec.common.ixn.dlp.part.dlp.pdg'][ip]
+                reco_pdg = df['rec.common.ixn.dlp.part.dlp.pdg'][ip]
                 if(verbose): print(f"Particle {ip} is a {reco_pdg} primary")
-                if(reco_pdg==particle_data.Proton()):
-                    truth_length = self.df['rec.common.ixn.dlp.part.dlp.truth..length'][ip]
-                    truth_pre = np.sum(self.df['rec.common.ixn.dlp.part.dlp.truth..length'][:ip])
+                if(reco_pdg==particle_data.proton):
+                    truth_length = df['rec.common.ixn.dlp.part.dlp.truth..length'][ip]
+                    truth_pre = np.sum(df['rec.common.ixn.dlp.part.dlp.truth..length'][:ip])
                     if(verbose):print(f'With {truth_length} overlapping particles')
                     max_overlap = 0
                     best_match_idx = 0
                     best_match_type = 0
+                    best_match_ixn = 0 
                     # Need to do the same trick as for scan over reco particles
                     for tp in range(truth_pre,truth_pre+truth_length):
-                        temp_overlap = self.df['rec.common.ixn.dlp.part.dlp.truthOverlap'][tp]
-                        temp_tp_match = self.df['rec.common.ixn.dlp.part.dlp.truth.part'][tp]
-                        temp_tp_type = self.df['rec.common.ixn.dlp.part.dlp.truth.type'][tp] # 1 prim and 3 second
-                        if(verbose):print(f'True ({temp_tp_type}) particle {temp_tp_match} has this amount of overlap {temp_overlap}')
+                        temp_overlap = df['rec.common.ixn.dlp.part.dlp.truthOverlap'][tp]
+                        temp_tp_match = df['rec.common.ixn.dlp.part.dlp.truth.part'][tp]
+                        temp_tp_type = df['rec.common.ixn.dlp.part.dlp.truth.type'][tp] # 1 prim and 3 second
+
+                        # DAMN I FORGOT TO INCLUDE THIIIS!!!!!
+                        temp_tp_ixn = df['rec.common.ixn.dlp.part.dlp.truth.ixn'][tp]
+                        if(verbose):print(f'True ({temp_tp_type}) particle {temp_tp_match} of true ixn {temp_tp_ixn} has this amount of overlap {temp_overlap}')
                         if(temp_overlap>max_overlap):
                             max_overlap=temp_overlap
                             best_match_idx=temp_tp_match
                             best_match_type=temp_tp_type
-
+                            best_match_ixn=temp_tp_ixn 
 
                     if(best_match_type==3):
-                        best_match_pdg = self.df['rec.mc.nu.sec.pdg'][best_match_idx]
+                        n_pre_true = np.sum(df['rec.mc.nu.nsec'][:best_match_ixn])
+                        n_sec_length = df['rec.mc.nu.nsec'][best_match_ixn]
+                        best_match_pdg = df['rec.mc.nu.sec.pdg'][n_pre_true:n_pre_true+n_sec_length][best_match_idx]
                         if(verbose):print('true secondary, PDG of best match: ', best_match_pdg)
                     elif(best_match_type==1):
-                        best_match_pdg = self.df['rec.mc.nu.prim.pdg'][best_match_idx]
+                        n_pre_true = np.sum(df['rec.mc.nu.nprim'][:best_match_ixn])
+                        n_prim_length = df['rec.mc.nu.nprim'][best_match_ixn]
+                        best_match_pdg = df['rec.mc.nu.prim.pdg'][n_pre_true:n_pre_true+n_prim_length][best_match_idx]
                         if(verbose):print('true primary, PDG of best match: ', best_match_pdg)
 
 
@@ -354,6 +369,10 @@ class CafReader():
         
         if(data_level=="reco" or data_level=="all"):
             print("Printing reco info...")
+
+            # Get nu-reco
+            for branch in self.reco_nu_branches:
+                print(branch, my_event[branch])
 
             # Get spine/ML-reco 
             for branch in self.reco_branches:

@@ -14,6 +14,9 @@ Utility functions to run
 the example notebooks
 '''
 
+
+
+
 def load_keys(keys_set):
     if(keys_set=="n-Ar"):
         input_keys = "./cfg/caf_keys.txt"
@@ -25,12 +28,15 @@ def load_keys(keys_set):
     return data
 
 
-def load_dataset(n_files,location):
+def load_dataset(n_files,location,mr='mr5_beta2a'):
     print("Openning MiniRun 5 beta 2.a CAFs")
     print("Reading ", n_files, " files")
 
-    if(location=="nersc"):
+    if(location=="nersc" and mr=='mr5_fix'):
         input_list = "./cfg/minirun5_noe_fix.txt"
+
+    elif(location=="nersc" and mr=='mr5_beta1'):
+        input_list = "./cfg/minirun5_beta1.txt"
     else:
         input_list = "./cfg/minirun_5_beta2a_fnal.txt"
     file_list = open(input_list, 'r')
@@ -38,10 +44,11 @@ def load_dataset(n_files,location):
     df = pd.DataFrame(data)
     counter = 0
     counter_max = n_files 
-    for line in tqdm(file_list):
+    for line in file_list:
         if(counter > counter_max):
             break
         else:
+            if(counter%100==0):print(f'File number {counter}')
             line = line.strip()
             #print("Reading", line)
             caf_file = uproot.open(line)
@@ -59,6 +66,27 @@ def load_dataset(n_files,location):
             df = pd.concat([df, df_temp])
             counter+=1
     return df 
+
+
+def check_FDV(in_vect,fiducial=True):
+    if(fiducial):
+        tpc_wall_dist = 8.0
+    else:
+        tpc_wall_dist = 0 
+    xb = 63.931
+    yb = 62.076
+    zb = 64.3163
+    x = in_vect[0]
+    y = in_vect[1]
+    z = in_vect[2]
+    is_fiducial = False
+    if(
+        (tpc_wall_dist < np.abs(x) < xb - tpc_wall_dist) and
+        (tpc_wall_dist < np.abs(y) < yb - tpc_wall_dist) and
+        (tpc_wall_dist < np.abs(z) < zb - tpc_wall_dist)):
+        is_fiducial=True
+    return is_fiducial
+
 
 
 class ParticleCode():
