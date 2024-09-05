@@ -152,7 +152,8 @@ class CafReader():
                 "rec.mc.nu.prim.start_pos.x",
                 "rec.mc.nu.prim.start_pos.y",
                 "rec.mc.nu.prim.start_pos.z",
-                "rec.mc.nu.prim.start_process",
+                "rec.mc.nu.prim.first_process",
+                "rec.mc.nu.prim.end_process",
                 "rec.mc.nu.prim.time",
                 "rec.mc.nu.prim..idx"
             ]
@@ -176,7 +177,8 @@ class CafReader():
                 "rec.mc.nu.sec.start_pos.x",
                 "rec.mc.nu.sec.start_pos.y",
                 "rec.mc.nu.sec.start_pos.z",
-                "rec.mc.nu.sec.start_process",
+                "rec.mc.nu.sec.first_process",
+                "rec.mc.nu.sec.end_process",
                 "rec.mc.nu.sec.time",
                 "rec.mc.nu.sec..idx"
             ]
