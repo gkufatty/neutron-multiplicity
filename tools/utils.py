@@ -32,7 +32,7 @@ def load_keys(keys_set):
     return data
 
 
-def load_dataset(n_files,location,mr='mr6'):
+def load_dataset(n_files,location,mr='mr6',spec=-1):
     print("Reading ", n_files, " files")
     print(f"Location selected {location}")
     if(location=="nersc" and mr=='mr5_fix'):
@@ -57,9 +57,37 @@ def load_dataset(n_files,location,mr='mr6'):
     df = pd.DataFrame(data)
     counter = 0
     counter_max = n_files 
-    for ifile in tqdm(range(counter_max)):
-        line =lines[ifile]
+
+
+    if(spec==-1):
+        for ifile in tqdm(range(counter_max)):
+            line =lines[ifile]
+            line = line.strip()
+            #print("Reading", line)
+            caf_file = uproot.open(line)
+            caf_tree = caf_file['cafTree']
+            # Create an empty dictionary to store branch data
+            caf_data_dict = {}
+            # Import list of keys for n-Ar
+            caf_keys = load_keys(mr)
+            #Iterate over the branch names in the TTree
+            for branch_name in caf_keys:
+                # Use branch_name as the key and fetch the data using .array()
+                caf_data_dict[branch_name] = caf_tree[branch_name].array(library="np")
+            # Create a Pandas DataFrame from the dictionary
+            df_temp = pd.DataFrame(caf_data_dict)
+            df_temp['file_number'] = np.nan
+            df_temp['file_entry'] = np.nan
+            for i in range(len(df_temp)):
+                df_temp.at[i,'file_number'] = ifile
+                df_temp.at[i,'file_entry'] = i
+            df = pd.concat([df, df_temp])
+            counter+=1
+    else:
+        print("Opening just one file...")
+        line =lines[spec]
         line = line.strip()
+        print(line)
         #print("Reading", line)
         caf_file = uproot.open(line)
         caf_tree = caf_file['cafTree']
@@ -73,14 +101,22 @@ def load_dataset(n_files,location,mr='mr6'):
             caf_data_dict[branch_name] = caf_tree[branch_name].array(library="np")
         # Create a Pandas DataFrame from the dictionary
         df_temp = pd.DataFrame(caf_data_dict)
+        df_temp['file_number'] = np.nan
+        df_temp['file_entry'] = np.nan
+        for i in range(len(df_temp)):
+            df_temp.at[i,'file_number'] = spec
+            df_temp.at[i,'file_entry'] = i
         df = pd.concat([df, df_temp])
         counter+=1
+
+
     return df 
 
 
 def check_FDV(in_vect,fiducial=True):
     if(fiducial):
-        tpc_wall_dist = 8.0
+        tpc_wall_dist = 10.0
+        # Some people do 8, or 5 (?)
     else:
         tpc_wall_dist = 0 
     xb = 63.931

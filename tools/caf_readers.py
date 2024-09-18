@@ -128,13 +128,13 @@ class CafReader():
                 "rec.common.ixn.dlp.vtx.x",
                 "rec.common.ixn.dlp.vtx.y",
                 "rec.common.ixn.dlp.vtx.z",
-                "rec.common.ixn.dlp.truth..length",
-                "rec.common.ixn.dlp.truth",
-                "rec.common.ixn.dlp.truth..idx",
-                "rec.common.ixn.dlp.truthOverlap..length",
-                "rec.common.ixn.dlp.truthOverlap..totarraysize",
-                "rec.common.ixn.dlp.truthOverlap",
-                "rec.common.ixn.dlp.truthOverlap..idx"
+                #"rec.common.ixn.dlp.truth..length",
+                #"rec.common.ixn.dlp.truth",
+                #"rec.common.ixn.dlp.truth..idx",
+                #"rec.common.ixn.dlp.truthOverlap..length",
+                #"rec.common.ixn.dlp.truthOverlap..totarraysize",
+                #"rec.common.ixn.dlp.truthOverlap",
+                #"rec.common.ixn.dlp.truthOverlap..idx"
         ]
         
         self.primary_branches = [
@@ -332,12 +332,19 @@ class CafReader():
             if(np.isscalar(my_event[branch])):
                 out_dict[branch] = my_event[branch]
             else:
+                #print(ixn_id)
+                #print(branch)
+                #print(len(my_event[branch]))
+                #print(my_event[branch])
                 out_dict[branch] = my_event[branch][ixn_id]
 
         # Get reco part info 
         for branch in self.reco_branches:
             if(np.isscalar(my_event[branch])):
                 out_dict[branch] = my_event[branch]
+
+            elif('length' in branch):
+                out_dict[branch] = my_event[branch][ixn_id]
             else:
                 out_dict[branch] = my_event[branch][nreco_part_pre:nreco_part_pre+nreco_part]
 
