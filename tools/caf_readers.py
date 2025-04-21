@@ -145,7 +145,6 @@ class CafReader():
                 "rec.mc.nu.prim.start_pos.x",
                 "rec.mc.nu.prim.start_pos.y",
                 "rec.mc.nu.prim.start_pos.z",
-                "rec.mc.nu.prim.start_process",
                 "rec.mc.nu.prim.time",
                 "rec.mc.nu.prim..idx"
             ]
@@ -169,7 +168,7 @@ class CafReader():
                 "rec.mc.nu.sec.start_pos.x",
                 "rec.mc.nu.sec.start_pos.y",
                 "rec.mc.nu.sec.start_pos.z",
-                "rec.mc.nu.sec.start_process",
+                #"rec.mc.nu.sec.start_process",
                 "rec.mc.nu.sec.time",
                 "rec.mc.nu.sec..idx"
             ]
@@ -338,12 +337,12 @@ class CafReader():
     def dump_branches(self,my_event,data_level):
 
         if(data_level=="truth" or data_level=="all"):
-            print("Printing truth info...")
+            print("Printing truth info gk...")
             # Get nu info 
             for branch in self.nu_branches:
                 print(branch, my_event[branch])
 
-            # Get primaries
+            # # Get primaries
             for branch in self.primary_branches:
                 print(branch, my_event[branch])
             # Get secondaries 
