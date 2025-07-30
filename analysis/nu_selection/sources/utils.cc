@@ -121,7 +121,7 @@ void process_truth_interactions(
 // === Reco Analysis Functions ===
 
 std::pair<bool,int> process_reco_interaction(
-    caf::StandardRecord* sr, int i){
+    caf::StandardRecord* sr, int i, std::string& reco_step){
     auto vertex = sr->common.ixn.dlp[i].vtx;
     auto vtx_overlaps = sr->common.ixn.dlp[i].truthOverlap;
     auto vtx_overlaps_idx = sr->common.ixn.dlp[i].truth; //index of the true interaction
@@ -129,7 +129,27 @@ std::pair<bool,int> process_reco_interaction(
     // Vertex matching
     int best_match_idx = FindVertexBestMatch(vertex, vtx_overlaps_idx, vtx_overlaps, sr);
     if (best_match_idx == -1) return {false, -1};
-    return {RecoIsQELikeSignal(sr, i), best_match_idx};
+    if(reco_step=="All" && best_match_idx != -1){
+        return {true,best_match_idx};
+    }
+    else if(reco_step=="FV"){
+        return{kIsVtxFV(sr->common.ixn.dlp[i].vtx), best_match_idx};
+    }
+    else if(reco_step=="2x2"){
+        return{RecoIsExitingMu(sr,i), best_match_idx};
+
+    }
+    else if(reco_step=="Mx2"){
+        return{RecoIsBasicCCNuAr(sr,i), best_match_idx};
+    }
+
+    else if(reco_step=="OnePrim"){
+        return{RecoHasOnePrimary(sr,i), best_match_idx};
+    }
+
+    else if(reco_step=="QE-like"){
+        return {RecoIsQELikeSignal(sr, i), best_match_idx};
+    }
 }
 
 
@@ -190,4 +210,22 @@ bool was_neutron_induced(int vtx_idx, int part_idx, const caf::StandardRecord* s
         }
     }
     return neutron_induced;
+}
+
+
+void print_stats(Counters& stats){
+        // Print stats
+    std::cout << "Total true QE-like interactions: " << stats.nu_true << std::endl;
+    std::cout << "Total reconstructed QE-like interactions: " << stats.nu_reco << std::endl;
+    std::cout << "Total matched QE-like interactions: " << stats.matched << std::endl;  
+    std::cout << "Num of true neutron induced protons: " << stats.np_true << std::endl;
+    std::cout << "Num of true secondary protons: " << stats.secp_true << std::endl;
+
+    float nu_efficiency = static_cast<double>(stats.matched) / stats.nu_true;
+    float nu_purity = static_cast<double>(stats.matched) / stats.nu_reco;
+    std::cout << "Nu efficiency: " << nu_efficiency << std::endl;
+    std::cout << "Nu purity: " << nu_purity << std::endl;
+    std::cout << "There are " << stats.nu_true << " true QE-like interactions." << std::endl;
+    std::cout << "There are " << stats.nu_reco << " reconstructed QE-like interactions with " << stats.matched << " matching true signal definition."<< std::endl;
+
 }

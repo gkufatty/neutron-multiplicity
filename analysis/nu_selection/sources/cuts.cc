@@ -264,10 +264,26 @@ std::pair<bool, bool> has_valid_muon(const caf::StandardRecord* sr, int idx) {
     return {has_exiting_muon, cross_mx2}; 
 }
 
+
+bool RecoIsExitingMu(const caf::StandardRecord* sr, int idx){
+    auto [has_exiting_muon, cross_mx2] = has_valid_muon(sr, idx);
+    return(has_exiting_muon && kIsVtxFV(sr->common.ixn.dlp[idx].vtx));
+
+}
+
+
+
 // Basic CC ν-Ar selection based on vertex cont
 bool RecoIsBasicCCNuAr(const caf::StandardRecord* sr, int idx) {
     auto [has_exiting_muon, cross_mx2] = has_valid_muon(sr, idx);
     return(has_exiting_muon && cross_mx2 && kIsVtxFV(sr->common.ixn.dlp[idx].vtx));
+}
+
+
+bool RecoHasOnePrimary(const caf::StandardRecord* sr, int idx){
+    auto [n_prim, n_sec] = getNumRecoSecPrim(sr, idx); //
+    return RecoIsBasicCCNuAr(sr, idx) && n_prim==1;
+    
 }
 
 // Final reco QE-like selector with topology limits

@@ -37,10 +37,13 @@ void process_truth_interactions(
 
 std::pair<bool,int> process_reco_interaction(
     caf::StandardRecord* sr, 
-    int i
+    int i,
+    std::string& reco_step
 );
 
 std::vector<TrueVertexSelection_np> look_sec_particles(
     const int vtx_idx, 
     caf::StandardRecord* sr,
     Counters& stats);
+
+void print_stats(Counters& stats);
