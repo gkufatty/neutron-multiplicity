@@ -40,6 +40,12 @@ std::vector<RecoProtonInfo> process_protons(
     const char* mode = "RHC"
 );
 
+std::vector<TrueNeutronProtonInfo> process_true_neutron_protons(
+    int truth_vtx,
+    const std::vector<int>& selected_reco_vtxs,
+    const caf::StandardRecord* sr
+);
+
 bool LightCandidate();
 bool isolated_part(
     int vtx_r, 

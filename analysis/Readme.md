@@ -63,11 +63,19 @@ an all-skipped input produces empty outputs successfully. Other missing or
 ambiguous event IDs still cause an error. Event IDs are never treated as entry
 numbers.
 
-Outputs in `output_files/` contain one row per proton candidate. The input
-interaction's truth flag and four multiplicities are preserved. The ROOT `event`
-branch is now a signed 64-bit integer. `has_particle_truth_match` indicates
-whether particle truth quantities are available; unmatched candidates remain in
-the output with invalid truth indices and unavailable scalar quantities.
+The text output and the ROOT `protons` tree contain one row per reconstructed
+proton candidate. The input interaction's truth flag and four multiplicities
+are preserved. The ROOT `event` branch is a signed 64-bit integer.
+`has_particle_truth_match` indicates whether particle truth quantities are
+available; unmatched candidates remain in the output with invalid truth
+indices and unavailable scalar quantities.
+
+The same ROOT file also contains a separate `true_neutron_protons` tree. It has
+one row per direct neutron-induced true secondary proton whose start position
+passes the fiducial-volume cut. The true end position is recorded, but it is not
+used to reject truth rows. Event-wide reverse-association and `select_n`
+selection-status branches distinguish protons with no reco overlap, protons
+reconstructed but rejected by the candidate cuts, and selected candidates.
 `matched` retains the input signal flag; `insignal` still uses the existing
 QE-like definition for the particle's truth interaction. Interaction counts are
 repeated per candidate and must not be summed over candidate rows. Selected

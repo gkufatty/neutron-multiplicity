@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <array>
@@ -93,6 +94,7 @@ struct PartBestMatch{
     float overlap = std::numeric_limits<float>::quiet_NaN();
     float energy = std::numeric_limits<float>::quiet_NaN();
     int parent = -1;
+    int direct_parent_pdg = 0;
     float time = std::numeric_limits<float>::quiet_NaN();
     float length = std::numeric_limits<float>::quiet_NaN();
     float distance = std::numeric_limits<float>::quiet_NaN();
@@ -127,8 +129,56 @@ struct RecoProtonInfo {
     int input_reco_track_multiplicity = -1;
     int input_true_primary_neutron_count = -1;
     int input_true_secondary_neutron_count = -1;
+    float selected_truth_vertex_t0 = std::numeric_limits<float>::quiet_NaN();
+    float matched_truth_vertex_t0 = std::numeric_limits<float>::quiet_NaN();
+    float matched_particle_dt = std::numeric_limits<float>::quiet_NaN();
     bool same_truth_interaction = false;
     bool coincidence;
+};
+
+// One entry in the truth-centric denominator. Only true secondary protons
+// with a direct neutron parent and a start point in the fiducial volume are
+// included. The end point is deliberately recorded rather than selected on.
+struct TrueNeutronProtonInfo {
+    std::string input_file;
+    std::int64_t input_event = -1;
+    int truth_vtx = -1;
+    int truth_particle_idx = -1;
+    int truth_type = caf::TrueParticleID::kSecondary;
+    int truth_pdg = ParticleCode::proton;
+    float truth_energy = std::numeric_limits<float>::quiet_NaN();
+    float truth_length = std::numeric_limits<float>::quiet_NaN();
+    float truth_distance = std::numeric_limits<float>::quiet_NaN();
+    float truth_time = std::numeric_limits<float>::quiet_NaN();
+    float truth_vertex_time = std::numeric_limits<float>::quiet_NaN();
+    float truth_particle_dt = std::numeric_limits<float>::quiet_NaN();
+    caf::SRVector3D truth_start;
+    caf::SRVector3D truth_end;
+    bool truth_end_in_fv = false;
+    int truth_parent_g4id = -1;
+    int direct_parent_pdg = 0;
+    int neutron_parent_type = -1;
+    int neutron_parent_idx = -1;
+    int neutron_parent_g4id = -1;
+
+    // Event-wide reverse truth matching. "Any overlap" means that at least
+    // one reco particle names this truth particle with finite overlap > 0.
+    // A reco match additionally requires this truth particle to be that reco
+    // particle's largest positive truth overlap.
+    bool has_any_reco_overlap = false;
+    float max_any_reco_overlap = std::numeric_limits<float>::quiet_NaN();
+    bool has_reco_match = false;
+    int n_reco_matches = 0;
+    int best_reco_vtx = -1;
+    int best_reco_particle_idx = -1;
+    int best_reco_pdg = 0;
+    bool best_reco_primary = false;
+    float best_reco_overlap = std::numeric_limits<float>::quiet_NaN();
+    bool best_reco_in_selected_interaction = false;
+    bool best_reco_start_in_fv = false;
+    bool best_reco_end_in_fv = false;
+    bool best_reco_passes_select_n = false;
+    bool has_selected_candidate = false;
 };
 
 
