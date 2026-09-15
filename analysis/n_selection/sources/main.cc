@@ -70,6 +70,9 @@ void ProcessSelectedFile(const std::string& file_name,
                     if (protons.empty()) ++zero_candidates;
                     for (auto& proton : protons) {
                         AttachInputMetadata(proton, *row);
+                        if (proton.coincidence && proton.bm.neutron_induced &&
+                            proton.same_truth_interaction)
+                            ++stats.np_reco;
                         all_protons.push_back(std::move(proton));
                     }
                 } catch (const std::exception& error) {
@@ -92,6 +95,8 @@ void WriteOutputs(const std::vector<RecoProtonInfo>& all_protons,
         << "rpdg,rtype,rlen,rdist,rE,rstart,rend,"
         << "t_int_idx,tpart_idx,tpdg,ttype,toverlap,tlen,tdist,tE,"
         << "tstart,tend,tparent,tt0,coincidence,insignal,ninduced,"
+        << "neutron_parent_type,neutron_parent_idx,neutron_parent_g4id,"
+        << "same_truth_interaction,"
         << "has_truth_match,true_track_multiplicity,reco_track_multiplicity,"
         << "true_primary_neutron_count,true_secondary_neutron_count,has_particle_truth_match\n";
 
@@ -123,6 +128,10 @@ void WriteOutputs(const std::vector<RecoProtonInfo>& all_protons,
             << p.coincidence << ","
             << p.bm.in_signal << ","
             << p.bm.neutron_induced << ","
+            << p.bm.neutron_parent_type << ","
+            << p.bm.neutron_parent_idx << ","
+            << p.bm.neutron_parent_g4id << ","
+            << p.same_truth_interaction << ","
             << p.input_has_truth_match << ","
             << p.input_true_track_multiplicity << ","
             << p.input_reco_track_multiplicity << ","
@@ -149,6 +158,8 @@ void WriteOutputs(const std::vector<RecoProtonInfo>& all_protons,
     float toverlap, tlen, tdist, tE;
     int tparent; float tt0;
     int coincidence, insignal, ninduced;
+    int neutron_parent_type, neutron_parent_idx, neutron_parent_g4id;
+    int same_truth_interaction;
     int has_truth_match, true_track_multiplicity, reco_track_multiplicity;
     int true_primary_neutron_count, true_secondary_neutron_count, has_particle_truth_match;
 
@@ -176,6 +187,10 @@ void WriteOutputs(const std::vector<RecoProtonInfo>& all_protons,
     t->Branch("coincidence", &coincidence);
     t->Branch("insignal", &insignal);
     t->Branch("ninduced", &ninduced);
+    t->Branch("neutron_parent_type", &neutron_parent_type);
+    t->Branch("neutron_parent_idx", &neutron_parent_idx);
+    t->Branch("neutron_parent_g4id", &neutron_parent_g4id);
+    t->Branch("same_truth_interaction", &same_truth_interaction);
     t->Branch("has_truth_match", &has_truth_match);
     t->Branch("true_track_multiplicity", &true_track_multiplicity);
     t->Branch("reco_track_multiplicity", &reco_track_multiplicity);
@@ -211,6 +226,10 @@ void WriteOutputs(const std::vector<RecoProtonInfo>& all_protons,
         coincidence = p.coincidence;
         insignal = p.bm.in_signal;
         ninduced = p.bm.neutron_induced;
+        neutron_parent_type = p.bm.neutron_parent_type;
+        neutron_parent_idx = p.bm.neutron_parent_idx;
+        neutron_parent_g4id = p.bm.neutron_parent_g4id;
+        same_truth_interaction = p.same_truth_interaction;
 
         has_truth_match = p.input_has_truth_match;
         true_track_multiplicity = p.input_true_track_multiplicity;
@@ -274,7 +293,8 @@ int select_2x2_neutrons(const std::string& input_csv, const char* version, const
               << "; with zero proton candidates: " << zero_candidates
               << "; skipped (event == -1): " << skipped_events << '\n';
     std::cout << "[INFO] Secondary proton candidates: " << stats.secp_reco
-              << "; matched neutron-induced secondary protons: " << stats.np_reco << '\n';
+              << "; matched neutron-induced secondary protons in the selected "
+              << "truth interaction: " << stats.np_reco << '\n';
     return 0;
 }
 

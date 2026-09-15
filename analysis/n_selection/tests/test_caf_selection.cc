@@ -46,7 +46,7 @@ void WriteCaf(const std::string& path, const std::vector<int>& events) {
         proton.end = caf::SRVector3D(16, 0, 10);
         reco.part.dlp.push_back(proton); // Unmatched candidate must survive.
         if (event == 26) {
-            record.mc.nu.resize(1);
+            record.mc.nu.resize(2);
             auto& nu = record.mc.nu[0];
             nu.iscc = false; // Legacy insignal must remain false.
             nu.prim.resize(1);
@@ -62,6 +62,26 @@ void WriteCaf(const std::string& path, const std::vector<int>& events) {
             id.ixn = 0; id.part = 0; id.type = caf::TrueParticleID::kSecondary;
             proton.truth = {id};
             proton.truthOverlap = {0.8f};
+            reco.part.dlp.push_back(proton);
+
+            // Keep a neutron-induced proton from a different truth
+            // interaction as a tagged background. Its direct neutron parent
+            // is stored in the secondary-particle collection.
+            auto& cross_nu = record.mc.nu[1];
+            cross_nu.sec.resize(2);
+            cross_nu.sec[0].pdg = ParticleCode::neutron;
+            cross_nu.sec[0].G4ID = 456;
+            cross_nu.sec[1].pdg = ParticleCode::proton;
+            cross_nu.sec[1].parent = 456;
+            cross_nu.sec[1].p.E = 1;
+            cross_nu.sec[1].start_pos = proton.start;
+            cross_nu.sec[1].end_pos = proton.end;
+            caf::TrueParticleID cross_id;
+            cross_id.ixn = 1;
+            cross_id.part = 1;
+            cross_id.type = caf::TrueParticleID::kSecondary;
+            proton.truth = {cross_id};
+            proton.truthOverlap = {0.7f};
             reco.part.dlp.push_back(proton);
         }
         tree.Fill();
@@ -96,7 +116,7 @@ int main(int argc, char** argv) {
         TFile result("output_files/protons_MiniRun6.5_RHC.root", "READ");
         TTree* tree = nullptr;
         result.GetObject("protons", tree);
-        Check(tree && tree->GetEntries() == 3, "Expected exactly three selected candidates");
+        Check(tree && tree->GetEntries() == 4, "Expected exactly four selected candidates");
         Check(std::string(tree->GetLeaf("event")->GetTypeName()) == "Long64_t", "64-bit event branch");
         int valid_count = 0;
         for (Long64_t entry = 0; entry < tree->GetEntries(); ++entry) {
@@ -118,31 +138,47 @@ int main(int argc, char** argv) {
             if (value("has_particle_truth_match")) {
                 ++valid_count;
                 Check(value("coincidence") == 1 && value("ninduced") == 1, "Neutron parent match");
-                Check(std::abs(value("toverlap") - 0.8) < 1e-6,
-                      "Selected truth overlap");
+                if (value("t_int_idx") == 0) {
+                    Check(std::abs(value("toverlap") - 0.8) < 1e-6 &&
+                          value("same_truth_interaction") == 1 &&
+                          value("neutron_parent_type") == caf::TrueParticleID::kPrimary &&
+                          value("neutron_parent_idx") == 0 &&
+                          value("neutron_parent_g4id") == 123,
+                          "Primary neutron parent in selected truth interaction");
+                } else {
+                    Check(value("t_int_idx") == 1 &&
+                          std::abs(value("toverlap") - 0.7) < 1e-6 &&
+                          value("same_truth_interaction") == 0 &&
+                          value("neutron_parent_type") == caf::TrueParticleID::kSecondary &&
+                          value("neutron_parent_idx") == 0 &&
+                          value("neutron_parent_g4id") == 456,
+                          "Secondary neutron parent in cross truth interaction");
+                }
             } else {
                 Check(value("t_int_idx") == -1 && value("tpart_idx") == -1 &&
-                      std::isnan(value("toverlap")) && std::isnan(value("tE")),
+                      std::isnan(value("toverlap")) && std::isnan(value("tE")) &&
+                      value("same_truth_interaction") == 0 &&
+                      value("neutron_parent_type") == -1,
                       "Unavailable particle truth");
             }
         }
-        Check(valid_count == 1, "Particle truth validity count");
+        Check(valid_count == 2, "Particle truth validity count");
         std::ifstream text("output_files/protons_MiniRun6.5_RHC.txt");
         std::vector<std::string> fields;
-        Check(ReadCsvRecord(text, fields) && fields.size() == 33, "Text header width");
+        Check(ReadCsvRecord(text, fields) && fields.size() == 37, "Text header width");
         int text_rows = 0;
         while (ReadCsvRecord(text, fields)) {
-            Check(fields.size() == 33 && fields[0] == caf, "Text CSV quoting / width");
+            Check(fields.size() == 37 && fields[0] == caf, "Text CSV quoting / width");
             ++text_rows;
         }
-        Check(text_rows == 3, "Text/ROOT candidate count mismatch");
+        Check(text_rows == 4, "Text/ROOT candidate count mismatch");
 
         WriteSelection(path + ",404,0,-1,0,0,-1,0,-1,-1\n");
         Throws([&] { select_2x2_neutrons("selection.csv", "6.6", "RHC"); }, "event not found");
         Check(!std::filesystem::exists("output_files/protons_MiniRun6.6_RHC.root"), "Failure created output");
         WriteSelection(path + ",26,2,-1,0,0,-1,0,-1,-1\n");
         Throws([&] { select_2x2_neutrons("selection.csv", "6.6", "RHC"); }, "reco_ixn out of bounds");
-        WriteSelection(path + ",26,0,1,1,0,1,1,1,0\n");
+        WriteSelection(path + ",26,0,2,1,0,1,1,1,0\n");
         Throws([&] { select_2x2_neutrons("selection.csv", "6.6", "RHC"); }, "truth_ixn out of bounds");
         const auto duplicate = (std::filesystem::current_path() / "duplicate.root").string();
         WriteCaf(duplicate, {26, 26, -1, -1});
@@ -160,7 +196,7 @@ int main(int argc, char** argv) {
         empty_result.GetObject("protons", empty_tree);
         Check(empty_tree && empty_tree->GetEntries() == 0, "All-skipped ROOT output must be empty");
         std::ifstream empty_text("output_files/protons_MiniRun6.7_RHC.txt");
-        Check(ReadCsvRecord(empty_text, fields) && fields.size() == 33 &&
+        Check(ReadCsvRecord(empty_text, fields) && fields.size() == 37 &&
               !ReadCsvRecord(empty_text, fields), "All-skipped text output must contain only the header");
 
         caf::StandardRecord sr;
@@ -195,10 +231,37 @@ int main(int argc, char** argv) {
         nu.sec[0].parent = 123;
         const auto pion_match = FindParticleBestMatch({id}, {0.75f}, &sr);
         Check(pion_match.valid && pion_match.neutron_induced &&
-              std::abs(pion_match.overlap - 0.75f) < 1e-6f,
-              "Positive-overlap pion truth match");
+              std::abs(pion_match.overlap - 0.75f) < 1e-6f &&
+              pion_match.neutron_parent_type == caf::TrueParticleID::kPrimary &&
+              pion_match.neutron_parent_idx == 0 &&
+              pion_match.neutron_parent_g4id == 123,
+              "Positive-overlap pion with primary neutron parent");
         Check(std::abs(pion_match.energy - 60.43f) < 0.02f,
               "Pion kinetic energy must use the pion mass");
+
+        nu.sec.resize(2);
+        nu.sec[1].pdg = ParticleCode::neutron;
+        nu.sec[1].G4ID = 456;
+        nu.sec[0].parent = 456;
+        const auto secondary_neutron_match =
+            FindParticleBestMatch({id}, {0.75f}, &sr);
+        Check(secondary_neutron_match.neutron_induced &&
+              secondary_neutron_match.neutron_parent_type ==
+                  caf::TrueParticleID::kSecondary &&
+              secondary_neutron_match.neutron_parent_idx == 1 &&
+              secondary_neutron_match.neutron_parent_g4id == 456,
+              "Direct secondary neutron parent");
+
+        nu.sec.resize(3);
+        nu.sec[1].pdg = ParticleCode::pip;
+        nu.sec[1].parent = 789;
+        nu.sec[2].pdg = ParticleCode::neutron;
+        nu.sec[2].G4ID = 789;
+        const auto indirect_neutron_match =
+            FindParticleBestMatch({id}, {0.75f}, &sr);
+        Check(!indirect_neutron_match.neutron_induced &&
+              indirect_neutron_match.neutron_parent_type == -1,
+              "Indirect neutron ancestor must not count as direct parent");
         std::cout << "PASS: " << checks << " ROOT/CAF integration checks\n";
         return 0;
     } catch (const std::exception& error) {

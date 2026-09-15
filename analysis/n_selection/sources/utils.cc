@@ -14,6 +14,13 @@
 #include <stdexcept>
 
 namespace {
+struct NeutronParentMatch {
+    bool induced = false;
+    int type = -1;
+    int particle_idx = -1;
+    int g4id = -1;
+};
+
 float TruthKineticEnergyMeV(const caf::SRTrueParticle& part) {
     if (!std::isfinite(part.p.E))
         return std::numeric_limits<float>::quiet_NaN();
@@ -24,6 +31,51 @@ float TruthKineticEnergyMeV(const caf::SRTrueParticle& part) {
         return std::numeric_limits<float>::quiet_NaN();
 
     return static_cast<float>((part.p.E - particle->Mass()) * 1000.0);
+}
+
+NeutronParentMatch FindDirectNeutronParent(
+    int vtx_idx, int part_idx, const caf::StandardRecord* sr) {
+    const auto& nu = sr->mc.nu[vtx_idx];
+    const int parent_id = nu.sec[part_idx].parent;
+
+    // GEANT4 track IDs are positive. A parent ID of zero means no parent,
+    // while negative IDs represent unavailable ancestry information.
+    if (parent_id <= 0) {
+        for (const auto& primary : nu.prim) {
+            if (primary.G4ID == parent_id &&
+                primary.pdg == ParticleCode::neutron) {
+                std::cerr << "[DEBUG] Avoided bug 1: rejected invalid neutron-parent "
+                          << "ID match (interaction=" << vtx_idx
+                          << ", secondary=" << part_idx
+                          << ", parent_id=" << parent_id << ")\n";
+                break;
+            }
+        }
+        return {};
+    }
+
+    NeutronParentMatch match;
+    const auto inspect = [&](const auto& particles, int type) {
+        for (std::size_t i = 0; i < particles.size(); ++i) {
+            const auto& candidate = particles[i];
+            if (candidate.G4ID <= 0 || candidate.G4ID != parent_id) continue;
+
+            // G4 track IDs identify one particle. A resolved non-neutron
+            // parent therefore ends the direct-parent search.
+            if (candidate.pdg == ParticleCode::neutron) {
+                match.induced = true;
+                match.type = type;
+                match.particle_idx = static_cast<int>(i);
+                match.g4id = candidate.G4ID;
+            }
+            return true;
+        }
+        return false;
+    };
+
+    if (inspect(nu.prim, caf::TrueParticleID::kPrimary)) return match;
+    inspect(nu.sec, caf::TrueParticleID::kSecondary);
+    return match;
 }
 } // namespace
 
@@ -49,6 +101,8 @@ void AttachInputMetadata(RecoProtonInfo& proton, const InputCAFRow& row) {
     proton.input_reco_track_multiplicity = row.reco_track_multiplicity;
     proton.input_true_primary_neutron_count = row.true_primary_neutron_count;
     proton.input_true_secondary_neutron_count = row.true_secondary_neutron_count;
+    proton.same_truth_interaction = row.has_truth_match && proton.bm.valid &&
+        proton.bm.interaction_idx == row.vtx_t;
 }
 
 // ======================
@@ -92,31 +146,7 @@ int FindVertexBestMatch(
 
 
 bool was_neutron_induced(int vtx_idx, int part_idx, const caf::StandardRecord* sr){
-    const auto& nu = sr->mc.nu[vtx_idx];
-    const int parent_id = nu.sec[part_idx].parent;
-
-    // GEANT4 track IDs are positive. A parent ID of zero means no parent,
-    // while negative IDs represent unavailable ancestry information.
-    if (parent_id <= 0) {
-        for (const auto& primary : nu.prim) {
-            if (primary.G4ID == parent_id &&
-                primary.pdg == ParticleCode::neutron) {
-                std::cerr << "[DEBUG] Avoided bug 1: rejected invalid neutron-parent "
-                          << "ID match (interaction=" << vtx_idx
-                          << ", secondary=" << part_idx
-                          << ", parent_id=" << parent_id << ")\n";
-                break;
-            }
-        }
-        return false;
-    }
-
-    for (const auto& primary : nu.prim) {
-        if (primary.G4ID <= 0) continue;
-        if (primary.G4ID == parent_id)
-            return primary.pdg == ParticleCode::neutron;
-    }
-    return false;
+    return FindDirectNeutronParent(vtx_idx, part_idx, sr).induced;
 }
 
 
@@ -195,8 +225,16 @@ PartBestMatch FindParticleBestMatch(
         bm.distance = (bm.start - nu.vtx).Mag();
         // bm.tpc = determineTPC(bm.start);
         // bm.vertex_tpc = determineTPC(nu.vtx);  
-        // Conditionally set neutron_induced
-        bm.neutron_induced = (bm.type == 3) ? was_neutron_induced(bm.interaction_idx, bm.particle_idx, sr) : false;
+        // A neutron-induced proton has a neutron as its direct parent. Preserve
+        // whether that neutron is stored as a true primary or true secondary.
+        if (bm.type == caf::TrueParticleID::kSecondary) {
+            const auto neutron_parent = FindDirectNeutronParent(
+                bm.interaction_idx, bm.particle_idx, sr);
+            bm.neutron_induced = neutron_parent.induced;
+            bm.neutron_parent_type = neutron_parent.type;
+            bm.neutron_parent_idx = neutron_parent.particle_idx;
+            bm.neutron_parent_g4id = neutron_parent.g4id;
+        }
         // QELikeSignal's muon helpers access prim[0].
         bm.in_signal = !nu.prim.empty() && QELikeSignal(sr, bm.interaction_idx, mode);
     }
@@ -264,7 +302,6 @@ std::vector<RecoProtonInfo> process_protons(
             // Update statistics
             if(bm_info.pdg == proton.reco_pdg) stats.matched_secp_pdg++;
             if(bm_info.type == proton.reco_type) stats.matched_secp_type++;
-            if(proton.coincidence && bm_info.neutron_induced){stats.np_reco++;}
             // Save proton info
             reco_protons.push_back(proton);  
         }

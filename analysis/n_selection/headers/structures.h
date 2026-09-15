@@ -99,6 +99,10 @@ struct PartBestMatch{
     caf::SRVector3D start;
     caf::SRVector3D end;
     bool neutron_induced = false;
+    // CAF TrueParticleID::PartType for the direct neutron parent.
+    int neutron_parent_type = -1;
+    int neutron_parent_idx = -1;
+    int neutron_parent_g4id = -1;
     bool in_signal = false;
 };
 
@@ -123,6 +127,7 @@ struct RecoProtonInfo {
     int input_reco_track_multiplicity = -1;
     int input_true_primary_neutron_count = -1;
     int input_true_secondary_neutron_count = -1;
+    bool same_truth_interaction = false;
     bool coincidence;
 };
 
@@ -132,7 +137,7 @@ struct Counters {
     int matched_secp = 0; //store protons correctly reconstructed
     int matched_secp_pdg = 0;
     int matched_secp_type = 0;
-    int np_reco = 0; // matched true proton and was neutron induced
+    int np_reco = 0; // matched neutron-induced proton in the selected truth interaction
     int missed_sec = 0; // potential secondary protons
     int light_candidate = 0; // light candidate protons
 };
