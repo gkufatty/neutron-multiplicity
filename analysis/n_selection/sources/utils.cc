@@ -2,9 +2,54 @@
 #include "structures.h" 
 #include "utils.h"  // Include the header file for utils
 #include "duneanaobj/StandardRecord/StandardRecord.h" //Ideally, this
+#include "TDatabasePDG.h"
+#include "TParticlePDG.h"
+#include "TTree.h"
 #include <cassert>
+#include <cmath>
 #include <cstring>
+#include <iostream>
+#include <limits>
 #include <utility> // for std::pair
+#include <stdexcept>
+
+namespace {
+float TruthKineticEnergyMeV(const caf::SRTrueParticle& part) {
+    if (!std::isfinite(part.p.E))
+        return std::numeric_limits<float>::quiet_NaN();
+
+    const TParticlePDG* particle =
+        TDatabasePDG::Instance()->GetParticle(part.pdg);
+    if (!particle)
+        return std::numeric_limits<float>::quiet_NaN();
+
+    return static_cast<float>((part.p.E - particle->Mass()) * 1000.0);
+}
+} // namespace
+
+EventEntryIndex BuildEventEntryIndex(TTree& tree, caf::StandardRecord*& sr) {
+    EventEntryIndex index;
+    const Long64_t entries = tree.GetEntries();
+    if (entries < 0) throw std::runtime_error("Cannot count cafTree entries");
+    for (Long64_t entry = 0; entry < entries; ++entry) {
+        if (tree.GetEntry(entry) <= 0 || !sr)
+            throw std::runtime_error("Cannot read cafTree entry " + std::to_string(entry));
+        index[sr->meta.nd_lar.event].push_back(entry);
+    }
+    return index;
+}
+
+void AttachInputMetadata(RecoProtonInfo& proton, const InputCAFRow& row) {
+    proton.input_file = row.file_name;
+    proton.input_event = row.event;
+    proton.input_vtx_t = row.vtx_t;
+    proton.input_matched = row.matched_true_signal;
+    proton.input_has_truth_match = row.has_truth_match;
+    proton.input_true_track_multiplicity = row.true_track_multiplicity;
+    proton.input_reco_track_multiplicity = row.reco_track_multiplicity;
+    proton.input_true_primary_neutron_count = row.true_primary_neutron_count;
+    proton.input_true_secondary_neutron_count = row.true_secondary_neutron_count;
+}
 
 // ======================
 // FUNCTION IMPLEMENTATIONS
@@ -47,19 +92,31 @@ int FindVertexBestMatch(
 
 
 bool was_neutron_induced(int vtx_idx, int part_idx, const caf::StandardRecord* sr){
-    bool neutron_induced = false;
     const auto& nu = sr->mc.nu[vtx_idx];
     const int parent_id = nu.sec[part_idx].parent;
-    for(int i =0; i<nu.prim.size(); i++){
-        //std::cout << "prim pdg" << nu.prim[i].pdg  << std::endl;
-        if (nu.prim[i].G4ID == parent_id){
-            //std::cout << "parent pdg" << nu.prim[i].pdg  << std::endl;
-            if(nu.prim[i].pdg == 2112){
-                neutron_induced = true;
+
+    // GEANT4 track IDs are positive. A parent ID of zero means no parent,
+    // while negative IDs represent unavailable ancestry information.
+    if (parent_id <= 0) {
+        for (const auto& primary : nu.prim) {
+            if (primary.G4ID == parent_id &&
+                primary.pdg == ParticleCode::neutron) {
+                std::cerr << "[DEBUG] Avoided bug 1: rejected invalid neutron-parent "
+                          << "ID match (interaction=" << vtx_idx
+                          << ", secondary=" << part_idx
+                          << ", parent_id=" << parent_id << ")\n";
+                break;
             }
         }
+        return false;
     }
-    return neutron_induced;
+
+    for (const auto& primary : nu.prim) {
+        if (primary.G4ID <= 0) continue;
+        if (primary.G4ID == parent_id)
+            return primary.pdg == ParticleCode::neutron;
+    }
+    return false;
 }
 
 
@@ -70,23 +127,62 @@ PartBestMatch FindParticleBestMatch(
     const caf::StandardRecord* sr,
     const char* mode){
     PartBestMatch bm{};
-    float max_overlap = -1.0f;
+    float max_overlap = 0.0f;
+    int best = -1;
+    int first_zero_overlap = -1;
+    if (overlaping_particles.size() != overlaps.size())
+        throw std::runtime_error("Particle truth and truthOverlap lengths differ");
     
     for(size_t n_part =0; n_part < overlaping_particles.size(); n_part++){
         float current_overlap = overlaps[n_part];
-        int truth_ixn_idx = overlaping_particles[n_part].ixn;
-        int truth_part_idx = overlaping_particles[n_part].part;
-        auto truth_type = overlaping_particles[n_part].type;
-        if(current_overlap>max_overlap){
+        if (std::isfinite(current_overlap) && current_overlap == 0.0f &&
+            first_zero_overlap < 0)
+            first_zero_overlap = static_cast<int>(n_part);
+        if(std::isfinite(current_overlap) && current_overlap > max_overlap){
             max_overlap = current_overlap;
-            bm.interaction_idx = truth_ixn_idx;
-            bm.particle_idx = truth_part_idx;
-            bm.type = truth_type;
+            best = static_cast<int>(n_part);
         }
     }
 
-    if (bm.type == 1 || bm.type == 3) {
-        const auto& nu = sr->mc.nu[bm.interaction_idx];
+    if (best < 0) {
+        // Report only a zero-overlap association that the old code would have
+        // promoted all the way to a valid match.
+        if (first_zero_overlap >= 0) {
+            const auto& zero_id = overlaping_particles[first_zero_overlap];
+            const bool supported = zero_id.type == 1 || zero_id.type == 3;
+            const bool valid_interaction = zero_id.ixn >= 0 &&
+                static_cast<std::size_t>(zero_id.ixn) < sr->mc.nu.size();
+            bool valid_particle = false;
+            if (supported && valid_interaction && zero_id.part >= 0) {
+                const auto& zero_nu = sr->mc.nu[zero_id.ixn];
+                const auto count = zero_id.type == 3 ? zero_nu.sec.size()
+                                                     : zero_nu.prim.size();
+                valid_particle = static_cast<std::size_t>(zero_id.part) < count;
+            }
+            if (supported && valid_interaction && valid_particle) {
+                std::cerr << "[DEBUG] Avoided bug 2: rejected zero-overlap "
+                          << "particle truth association (interaction="
+                          << zero_id.ixn << ", particle=" << zero_id.part
+                          << ", type=" << zero_id.type << ")\n";
+            }
+        }
+        return bm;
+    }
+    const auto& id = overlaping_particles[best];
+    // Other CAF truth types are unavailable to this neutrino-particle analysis.
+    if (id.type != 1 && id.type != 3) return bm;
+    if (static_cast<std::size_t>(id.ixn) >= sr->mc.nu.size())
+        throw std::runtime_error("Particle truth interaction index out of bounds");
+    const auto& nu = sr->mc.nu[id.ixn];
+    const auto count = id.type == 3 ? nu.sec.size() : nu.prim.size();
+    if (static_cast<std::size_t>(id.part) >= count)
+        throw std::runtime_error("Particle truth particle index out of bounds");
+    {
+        bm.valid = true;
+        bm.overlap = max_overlap;
+        bm.interaction_idx = id.ixn;
+        bm.particle_idx = id.part;
+        bm.type = id.type;
         const auto& part = (bm.type == 3) ? nu.sec[bm.particle_idx]
             : nu.prim[bm.particle_idx];
         bm.pdg = part.pdg;
@@ -94,14 +190,15 @@ PartBestMatch FindParticleBestMatch(
         bm.start = part.start_pos;
         bm.end = part.end_pos;
         bm.parent = part.parent;
-        bm.energy = part.p.E*1000 - ParticleCode::proton_mass;;
+        bm.energy = TruthKineticEnergyMeV(part);
         bm.length = (bm.end - bm.start).Mag();
         bm.distance = (bm.start - nu.vtx).Mag();
         // bm.tpc = determineTPC(bm.start);
         // bm.vertex_tpc = determineTPC(nu.vtx);  
         // Conditionally set neutron_induced
         bm.neutron_induced = (bm.type == 3) ? was_neutron_induced(bm.interaction_idx, bm.particle_idx, sr) : false;
-        bm.in_signal = QELikeSignal(sr, bm.interaction_idx, mode);
+        // QELikeSignal's muon helpers access prim[0].
+        bm.in_signal = !nu.prim.empty() && QELikeSignal(sr, bm.interaction_idx, mode);
     }
     return bm;
 }
@@ -130,10 +227,11 @@ std::vector<RecoProtonInfo> process_protons(
         // if (!around_track_region(p.start, muon_start, muon_end, 0.5)) continue;
 
         PartBestMatch bm_info = FindParticleBestMatch(p.truth, p.truthOverlap, sr, mode);
-        if (bm_info.interaction_idx == -1) continue; // Skip if no best match found 
+        // Keep reconstructed candidates without usable truth; bm.valid tells
+        // downstream analyses whether truth quantities and flags are available.
         
 
-        if(p.primary&& bm_info.neutron_induced){
+        if(p.primary && bm_info.valid && bm_info.neutron_induced){
             stats.missed_sec++;
             bool LightCandidate = isolated_part(vtx_r, reco, sr,p.start,2.0f);
             // Check if the proton is a light candidate
@@ -143,7 +241,7 @@ std::vector<RecoProtonInfo> process_protons(
             //do light check
         }
         if(!p.primary){    
-            RecoProtonInfo proton;
+            RecoProtonInfo proton{};
             stats.secp_reco++;        
             //reco information  
             proton.reco_pdg = p.pdg;
@@ -156,7 +254,7 @@ std::vector<RecoProtonInfo> process_protons(
             proton.reco_dist = (p.start - reco.vtx).Mag();
             //bm information
             proton.bm = bm_info;  // direct assignment
-            if((proton.reco_pdg==bm_info.pdg) && (proton.reco_type==bm_info.type)){
+            if(bm_info.valid && (proton.reco_pdg==bm_info.pdg) && (proton.reco_type==bm_info.type)){
                 proton.coincidence = true;
                 stats.matched_secp++;
             }

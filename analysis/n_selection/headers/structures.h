@@ -2,6 +2,9 @@
 
 #include <string>
 #include <vector>
+#include <array>
+#include <limits>
+#include "selection_input.h"
 #include "TVector3.h"
 #include "duneanaobj/StandardRecord/StandardRecord.h" //Ideally, this should be SRProxy.h, but there is an include error for that now. Alternatively, you can use SetBranchStatus function in TreeLoader, but it does not work for the common branch (to do)
 
@@ -81,28 +84,22 @@ namespace constants {
 // DATA STRUCTURES
 // ======================
 
-struct InputCAFRow {
-    std::string file_name;
-    int event;
-    int vtx_r;
-    int vtx_t;
-    bool matched_true_signal;
-};
-
 struct PartBestMatch{
-    int interaction_idx;
-    int particle_idx;
-    int type;
-    int pdg;
-    float energy;
-    int parent;  
-    float time;
-    float length;
-    float distance;
+    bool valid = false;
+    int interaction_idx = -1;
+    int particle_idx = -1;
+    int type = -1;
+    int pdg = 0;
+    float overlap = std::numeric_limits<float>::quiet_NaN();
+    float energy = std::numeric_limits<float>::quiet_NaN();
+    int parent = -1;
+    float time = std::numeric_limits<float>::quiet_NaN();
+    float length = std::numeric_limits<float>::quiet_NaN();
+    float distance = std::numeric_limits<float>::quiet_NaN();
     caf::SRVector3D start;
     caf::SRVector3D end;
-    bool neutron_induced;
-    bool in_signal;
+    bool neutron_induced = false;
+    bool in_signal = false;
 };
 
 struct RecoProtonInfo {
@@ -114,13 +111,18 @@ struct RecoProtonInfo {
     caf::SRVector3D reco_end;
     float reco_len;
     float reco_dist;
-    bool reco_different_tpc;
+    bool reco_different_tpc = false;
     PartBestMatch bm;
     // Input metadata
     std::string input_file;
-    int input_event;
+    std::int64_t input_event = -1;
     int input_vtx_t;
     bool input_matched;
+    bool input_has_truth_match = false;
+    int input_true_track_multiplicity = -1;
+    int input_reco_track_multiplicity = -1;
+    int input_true_primary_neutron_count = -1;
+    int input_true_secondary_neutron_count = -1;
     bool coincidence;
 };
 

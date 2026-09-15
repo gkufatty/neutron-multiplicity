@@ -10,6 +10,10 @@
 #include "cuts.h"  // Include the header file for cuts
 #include "TVector3.h"
 
+class TTree;
+EventEntryIndex BuildEventEntryIndex(TTree& tree, caf::StandardRecord*& sr);
+void AttachInputMetadata(RecoProtonInfo& proton, const InputCAFRow& row);
+
 int FindVertexBestMatch(
     const caf::SRVector3D& vertex,
     const std::vector<std::size_t>& vtx_overlaps_idx,

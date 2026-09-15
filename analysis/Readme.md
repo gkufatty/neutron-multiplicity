@@ -41,17 +41,52 @@ source macro.sh
 This generates two files in output_files, one with only the list of cafs files that passed the neutrino selection and other one with also the vertex informationn (event, file, vertex index, etc.). This will be the input to run neutron selection and light study.
 
 ## Running the neutron selection
-Look up for neuton-induced protons. 
+Look for neutron-induced proton candidates using a neutrino-selection CSV.
+The CSV must contain `file_name,event,reco_ixn,truth_ixn,has_truth_match,matched_true_signal,true_track_multiplicity,reco_track_multiplicity,true_primary_neutron_count,true_secondary_neutron_count`.
+Columns are read by name; quoted and unquoted fields are supported.
+The older five-column QE-like interaction files need conversion or regeneration.
 ```bash
 cd neutron-multiplicity/analysis/n_selection/
 source macro.sh
-./select_n <version> <MODE>
+./select_n <selection.csv> <version> <MODE>
 ```
 for example:
 ```bash
 source macro.sh
-./select_n 6.2 RHC
+./select_n /global/homes/l/lmlepin/2x2_trackMultStudies/spineAna/minirun6.5_neutrino_selection_09-14-2026.csv 6.5 RHC
 ```
+The selector matches `event` to `rec.meta.nd_lar.event` within each CAF file.
+Rows with `event == -1` are temporarily skipped before CAF lookup. The terminal
+summary reports skipped rows separately from processed interactions and those
+with zero candidates. A file referenced only by skipped rows is not opened;
+an all-skipped input produces empty outputs successfully. Other missing or
+ambiguous event IDs still cause an error. Event IDs are never treated as entry
+numbers.
+
+Outputs in `output_files/` contain one row per proton candidate. The input
+interaction's truth flag and four multiplicities are preserved. The ROOT `event`
+branch is now a signed 64-bit integer. `has_particle_truth_match` indicates
+whether particle truth quantities are available; unmatched candidates remain in
+the output with invalid truth indices and unavailable scalar quantities.
+`matched` retains the input signal flag; `insignal` still uses the existing
+QE-like definition for the particle's truth interaction. Interaction counts are
+repeated per candidate and must not be summed over candidate rows. Selected
+interactions yielding zero candidates are counted in the terminal summary.
+
+Run the ROOT-independent input tests from the repository root:
+```bash
+bash analysis/n_selection/tests/run_tests.sh [selection.csv]
+```
+With ROOT and duneanaobj configured, also run the synthetic CAF integration tests:
+```bash
+bash analysis/n_selection/tests/run_root_tests.sh
+```
+The inspected MiniRun6.5 CSV contains 25 rows with `event == -1`. These are
+excluded, leaving 8,964 interactions eligible for processing. To recover skipped
+rows in a future analysis, export an unambiguous identifier and extend the reader
+to use it. See `n_selection/CSV_COMPATIBILITY_REPORT.txt` for validation results
+and the exact scope of the change.
+
 This generates the reconstructed protons list files with their info in root and txt formats. Generate the plots from root files. For rhc files:
 ```bash
 cd analysis/n_selection/plots/rhc
